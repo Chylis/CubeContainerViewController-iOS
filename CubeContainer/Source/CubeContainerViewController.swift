@@ -10,7 +10,7 @@ import UIKit
 
 public protocol CubeContainerDataSource {
     
-    //Called during an interactive transition to fetch the next view controller
+    //Called to fetch the next view controller when there are no more view controllers in the 'future view controllers' stack
     func cubeContainerViewController(_ cubeContainerViewController: CubeContainerViewController,
                                      viewControllerAfter viewController: UIViewController) -> UIViewController?
 }
@@ -24,8 +24,8 @@ public class CubeContainerViewController: UIViewController {
     
     private let containerView = UIView()
     
-    //Initial view controller
-    private let rootViewController: UIViewController
+    //View controllers to be presented when navigating forward
+    private var futureViewControllers: [UIViewController]
     
     //The currently presented side of the cube
     private var currentSide: CubeSide = .front
@@ -49,18 +49,22 @@ public class CubeContainerViewController: UIViewController {
     
     //MARK: Creation
     
-    public init(viewController: UIViewController) {
-        rootViewController = viewController
+    public convenience init(viewController: UIViewController) {
+        self.init(viewControllers: [viewController])
+    }
+    
+    public init(viewControllers: [UIViewController]) {
+        guard !viewControllers.isEmpty else {
+            fatalError("No view controllers provided!")
+        }
+        
+        futureViewControllers = viewControllers.reversed()
         super.init(nibName:nil, bundle:nil)
     }
     
     public required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
-    
-    
-    
     
     
     
@@ -73,9 +77,9 @@ public class CubeContainerViewController: UIViewController {
         view.centerSubview(containerView, topAnchor:topLayoutGuide.bottomAnchor)
         applyCameraPerspective()
         addGestureRecognizers()
-        addChildViewController(rootViewController,
+        addChildViewController(popNextViewController()!,
                                superview: containerView,
-                               transform: currentSide.viewTransform(in: view))
+                               transform: currentSide.viewTransform(in: containerView))
     }
     
     private func applyCameraPerspective() {
@@ -110,7 +114,7 @@ public class CubeContainerViewController: UIViewController {
     
     private func applyCubeTransforms() {
         for (index, childViewController) in childViewControllers.enumerated() {
-            let cubeSide = CubeSide(rawValue: index)!
+            let cubeSide = CubeSide(index: index)
             childViewController.view.layer.transform = cubeSide.viewTransform(in: view)
         }
     }
@@ -128,38 +132,65 @@ public class CubeContainerViewController: UIViewController {
     
     /**
      Rotates the cube forward if possible.
-     Disables user interaction so that the newest view may receive touches.
      */
-    public func navigateToViewController(_ viewController: UIViewController) {
-        let canAddMoreChildren = childViewControllers.count < CubeSide.count.rawValue
-        
-        if canAddMoreChildren {
-            currentViewController().view.isUserInteractionEnabled = false
-            addChildViewController(viewController, superview: containerView, transform: currentSide.nextSide().viewTransform(in: containerView))
-            performRotationAnimation(from: currentSide, to: currentSide.nextSide())
+    public func navigateToNextViewController() {
+        guard !isRotationAnimationInProgress() else {
+            return
         }
+        guard let nextVc = popNextViewController() else {
+            return
+        }
+        
+        //Disable user interaction so that the newest view may receive touches.
+        currentViewController().view.isUserInteractionEnabled = false
+        
+        addChildViewController(nextVc, superview: containerView, transform: currentSide.nextSide().viewTransform(in: containerView))
+        performRotationAnimation(from: currentSide, to: currentSide.nextSide())
     }
     
     /**
      Rotates the cube backward and removes the latest view controller if rotation was successful.
      */
     public func navigateToPreviousViewController() {
-        let hasPreviousChildren = childViewControllers.count > 1
-        
-        if hasPreviousChildren {
-            rotationAnimationCompletionBlock =  {
-                self.currentViewController().removeFromParent()
-            }
-            
-            performRotationAnimation(from: currentSide, to: currentSide.prevSide())
+        let hasPreviousViewControllers = currentViewController() != childViewControllers.first
+        guard !isRotationAnimationInProgress(), hasPreviousViewControllers else {
+            return
         }
+        
+        rotationAnimationCompletionBlock =  {
+            let currentVc = self.currentViewController()
+            self.pushViewControllerToFutureStack(currentVc)
+        }
+        
+        performRotationAnimation(from: currentSide, to: currentSide.prevSide())
     }
     
     
     
     
     
+    //MARK: Private
     
+    /// Returns the currently presented view controller
+    private func currentViewController() -> UIViewController {
+        return childViewControllers.last!
+    }
+    
+    //Pops the stack of future view controllers, returning the next view controller to be presented
+    private func popNextViewController() -> UIViewController? {
+        if futureViewControllers.last != nil {
+            return futureViewControllers.removeLast()
+        }
+        
+        //No future view controllers in the stack - let's ask the delegate for one
+        return dataSource?.cubeContainerViewController(self, viewControllerAfter: currentViewController())
+    }
+    
+    
+    private func pushViewControllerToFutureStack(_ viewController: UIViewController) {
+        viewController.removeFromParent()
+        futureViewControllers.append(viewController)
+    }
     
     
     
@@ -189,9 +220,8 @@ public class CubeContainerViewController: UIViewController {
             
             if isRotatingBackward {
                 navigateToPreviousViewController()
-            }
-            else if let nextVc = dataSource?.cubeContainerViewController(self, viewControllerAfter: currentViewController()) {
-                navigateToViewController(nextVc)
+            } else {
+                navigateToNextViewController()
             }
             
         case .changed:
@@ -338,7 +368,8 @@ extension CubeContainerViewController: CAAnimationDelegate {
             
             if isAnimationDirectionForward {
                 // Remove the newly added 'nextVc' since animation didn't complete
-                currentViewController().removeFromParent()
+                let currentVc = self.currentViewController()
+                self.pushViewControllerToFutureStack(currentVc)
             }
         }
         

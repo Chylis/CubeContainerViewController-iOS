@@ -22,9 +22,4 @@ extension UIViewController {
         view.removeFromSuperview()
         removeFromParentViewController()
     }
-    
-    func currentViewController() -> UIViewController {
-        let current = childViewControllers.last!
-        return current
-    }
 }

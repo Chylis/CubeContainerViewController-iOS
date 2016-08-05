@@ -15,6 +15,11 @@ enum CubeSide: Int {
     case left
     case count
     
+    init(index: Int) {
+        let relativeIndex = index % CubeSide.count.rawValue
+        self = CubeSide(rawValue: relativeIndex)!
+    }
+    
     func nextSide() -> CubeSide {
         switch self {
         case .front:    return .right
