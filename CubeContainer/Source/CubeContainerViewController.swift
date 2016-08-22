@@ -22,22 +22,22 @@ public class CubeContainerViewController: UIViewController {
     
     public var dataSource: CubeContainerDataSource?
     
-    private let containerView = UIView()
+    fileprivate let containerView = UIView()
     
     //View controllers to be presented when navigating forward
     private var futureViewControllers: [UIViewController]
     
     //The currently presented side of the cube
-    private var currentSide: CubeSide = .front
+    fileprivate var currentSide: CubeSide = .front
     
     //Called after a rotation animation has completed successfully
-    private var rotationAnimationCompletionBlock: (() -> ())?
+    fileprivate var rotationAnimationCompletionBlock: (() -> ())?
     
     private var rightScreenEdgeRecognizer, leftScreenEdgeRecognizer: UIScreenEdgePanGestureRecognizer!
     
     //Rotation animation key-value keys
-    private let rotationAnimationIdentifier = "rotateCubeAnimation"
-    private let rotationAnimationKeyFinalSide = "rotateCubeAnimationFinalTransform"
+    fileprivate let rotationAnimationIdentifier = "rotateCubeAnimation"
+    fileprivate let rotationAnimationKeyFinalSide = "rotateCubeAnimationFinalTransform"
     
     
     
@@ -172,7 +172,7 @@ public class CubeContainerViewController: UIViewController {
     //MARK: Private
     
     /// Returns the currently presented view controller
-    private func currentViewController() -> UIViewController {
+    fileprivate func currentViewController() -> UIViewController {
         return childViewControllers.last!
     }
     
@@ -187,7 +187,7 @@ public class CubeContainerViewController: UIViewController {
     }
     
     
-    private func pushViewControllerToFutureStack(_ viewController: UIViewController) {
+    fileprivate func pushViewControllerToFutureStack(_ viewController: UIViewController) {
         viewController.removeFromParent()
         futureViewControllers.append(viewController)
     }
@@ -318,7 +318,7 @@ public class CubeContainerViewController: UIViewController {
         return keyFrameAnimation
     }
     
-    private func removeRotationAnimation() {
+    fileprivate func removeRotationAnimation() {
         containerView.layer.removeAnimation(forKey: rotationAnimationIdentifier)
     }
 }
