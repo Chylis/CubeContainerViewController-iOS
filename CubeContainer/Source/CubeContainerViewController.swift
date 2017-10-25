@@ -113,6 +113,8 @@ public class CubeContainerViewController: UIViewController {
     }
     
     private func applyCubeTransforms() {
+        containerView.layer.sublayerTransform = currentSide.perspectiveTransform(in: view)
+        
         for (index, childViewController) in childViewControllers.enumerated() {
             let cubeSide = CubeSide(index: index)
             childViewController.view.layer.transform = cubeSide.viewTransform(in: view)
