@@ -44,20 +44,27 @@ enum CubeSide: Int {
      Returns the cube-transform for the given cube side
      */
     func viewTransform(in parentView: UIView) -> CATransform3D {
-        let horizontalDistance = parentView.bounds.size.width / 2.0
+        let distance = parentView.bounds.size.width / 2.0
         
         switch self {
         case .front:
-            return CATransform3DMakeTranslation(0, 0, horizontalDistance) //y 0 degrees, z 'distance' units (towards camera)
+            //Translate z towards camera
+            return CATransform3DMakeTranslation(0, 0, distance)
         case .right:
-            let transform = CATransform3DMakeTranslation(horizontalDistance, 0, 0) //x 'distance' units (right)
-            return CATransform3DRotate(transform, .pi / 2.0, 0, 1, 0) //y 90 degrees
+            //Translate x right
+            let transform = CATransform3DMakeTranslation(distance, 0, 0)
+            //Rotate y 90 degrees
+            return CATransform3DRotate(transform, .pi / 2.0, 0, 1, 0)
         case .left:
-            let transform = CATransform3DMakeTranslation(-horizontalDistance, 0, 0) //x -'distance' units (left)
-            return CATransform3DRotate(transform, -(.pi / 2.0), 0, 1, 0) //y -90 degrees
+            //Translate x left
+            let transform = CATransform3DMakeTranslation(-distance, 0, 0)
+            //Rotate y -90 degrees
+            return CATransform3DRotate(transform, -(.pi / 2.0), 0, 1, 0)
         case .back:
-            let transform = CATransform3DMakeTranslation(0, 0, -horizontalDistance) //z -'distance' units (away from camera)
-            return CATransform3DRotate(transform, .pi, 0, 1, 0) //y 180 degrees (mirrored)
+            //Translate z away from camera
+            let transform = CATransform3DMakeTranslation(0, 0, -distance)
+            //Rotate y 180 degrees
+            return CATransform3DRotate(transform, .pi, 0, 1, 0)
         default:
             return CATransform3DIdentity
         }
@@ -66,18 +73,29 @@ enum CubeSide: Int {
     /**
      Returns the perspective transform required to see the view at each side
      */
-    func perspectiveTransform() -> CATransform3D {
+    func perspectiveTransform(in parentView: UIView) -> CATransform3D {
+        let distance = parentView.bounds.size.width / 2.0
+        
+        //Apply perspective prior to transform
+        var transform = CATransform3DIdentity
+        transform.m34 = -1 / 500
+        
+        //Translate camera away
+        transform = CATransform3DTranslate(transform, 0, 0, -distance)
+        
         switch self {
-        case .front:
-            return CATransform3DIdentity
         case .right:
-            return CATransform3DMakeRotation(-(.pi / 2.0), 0, 1, 0) // y - 90 degrees
+            //Rotate y -90 degrees
+            transform = CATransform3DRotate(transform, -(.pi / 2.0), 0, 1, 0)
         case .left:
-            return CATransform3DMakeRotation(.pi / 2.0, 0, 1, 0) //y 90 degrees
+            //Rotate y 90 degrees
+            transform = CATransform3DRotate(transform, (.pi / 2.0), 0, 1, 0)
         case .back:
-            return CATransform3DMakeRotation(.pi, 0, 1, 0) //y 180 degrees
+            //Rotate y -180 degrees
+            transform = CATransform3DRotate(transform, -.pi, 0, 1, 0)
         default:
-            return CATransform3DIdentity
+            break
         }
+        return transform
     }
 }

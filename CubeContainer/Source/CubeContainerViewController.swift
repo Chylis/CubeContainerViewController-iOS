@@ -84,7 +84,7 @@ public class CubeContainerViewController: UIViewController {
     
     private func applyCameraPerspective() {
         var perspective = CATransform3DIdentity
-        perspective.m34 = -1/50000 //After testing, 50000 seems to be a good value
+        perspective.m34 = -1/500 //After testing, 500 seems to be a good value
         containerView.layer.sublayerTransform = perspective
     }
     
@@ -283,11 +283,11 @@ public class CubeContainerViewController: UIViewController {
     /// Adds meta-data to the animation, which can be retrieved and used in the delegate callback 'animationDidStop'
     private func makeRotationAnimation(from: CubeSide, to: CubeSide) -> CAAnimation {
         
-        let startTransform = from.perspectiveTransform()
-        let startDownScaled = CATransform3DScale(startTransform, 0.55, 0.55, 0.55)
+        let startTransform = from.perspectiveTransform(in: containerView)
+        let startDownScaled = CATransform3DScale(startTransform, 0.85, 0.85, 0.85)
         
-        let finalTransform = to.perspectiveTransform()
-        let finalDownScaled = CATransform3DScale(finalTransform, 0.55, 0.55, 0.55)
+        let finalTransform = to.perspectiveTransform(in: containerView)
+        let finalDownScaled = CATransform3DScale(finalTransform, 0.85, 0.85, 0.85)
         
         let keyFrameAnimation = CAKeyframeAnimation(keyPath: "sublayerTransform")
         keyFrameAnimation.duration = 1.0
@@ -356,7 +356,7 @@ extension CubeContainerViewController: CAAnimationDelegate {
             currentSide = newSide
             
             //Update perspective of container view
-            containerView.layer.sublayerTransform = newSide.perspectiveTransform()
+            containerView.layer.sublayerTransform = newSide.perspectiveTransform(in: containerView)
             
             if let rotationAnimationCompletionBlock = rotationAnimationCompletionBlock {
                 rotationAnimationCompletionBlock()
