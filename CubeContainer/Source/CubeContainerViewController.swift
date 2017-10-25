@@ -133,7 +133,7 @@ public class CubeContainerViewController: UIViewController {
     /**
      Rotates the cube forward if possible.
      */
-    public func navigateToNextViewController() {
+    @objc public func navigateToNextViewController() {
         guard !isRotationAnimationInProgress() else {
             return
         }
@@ -151,7 +151,7 @@ public class CubeContainerViewController: UIViewController {
     /**
      Rotates the cube backward and removes the latest view controller if rotation was successful.
      */
-    public func navigateToPreviousViewController() {
+    @objc public func navigateToPreviousViewController() {
         let hasPreviousViewControllers = currentViewController() != childViewControllers.first
         guard !isRotationAnimationInProgress(), hasPreviousViewControllers else {
             return
@@ -199,7 +199,7 @@ public class CubeContainerViewController: UIViewController {
     
     //MARK: Interactive animation related
     
-    func onEdgePanned(sender: UIScreenEdgePanGestureRecognizer) {
+    @objc func onEdgePanned(sender: UIScreenEdgePanGestureRecognizer) {
         
         //Calculate some data
         let minPercent = 0.0
