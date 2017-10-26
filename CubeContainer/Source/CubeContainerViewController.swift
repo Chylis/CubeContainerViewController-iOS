@@ -136,6 +136,10 @@ public class CubeContainerViewController: UIViewController {
      Rotates the cube forward if possible.
      */
     @objc public func navigateToNextViewController() {
+        navigateToNextViewController(isInteractive: false)
+    }
+    
+    private func navigateToNextViewController(isInteractive: Bool) {
         guard !isRotationAnimationInProgress() else {
             return
         }
@@ -147,13 +151,17 @@ public class CubeContainerViewController: UIViewController {
         currentViewController().view.isUserInteractionEnabled = false
         
         addChildViewController(nextVc, superview: containerView, transform: currentSide.nextSide().viewTransform(in: containerView))
-        performRotationAnimation(from: currentSide, to: currentSide.nextSide())
+        performRotationAnimation(from: currentSide, to: currentSide.nextSide(), isInteractive: isInteractive)
     }
     
     /**
      Rotates the cube backward and removes the latest view controller if rotation was successful.
      */
     @objc public func navigateToPreviousViewController() {
+        navigateToPreviousViewController(isInteractive: false)
+    }
+    
+    private func navigateToPreviousViewController(isInteractive: Bool) {
         let hasPreviousViewControllers = currentViewController() != childViewControllers.first
         guard !isRotationAnimationInProgress(), hasPreviousViewControllers else {
             return
@@ -164,7 +172,7 @@ public class CubeContainerViewController: UIViewController {
             self.pushViewControllerToFutureStack(currentVc)
         }
         
-        performRotationAnimation(from: currentSide, to: currentSide.prevSide())
+        performRotationAnimation(from: currentSide, to: currentSide.prevSide(), isInteractive: isInteractive)
     }
     
     
@@ -201,7 +209,7 @@ public class CubeContainerViewController: UIViewController {
     
     //MARK: Interactive animation related
     
-    @objc func onEdgePanned(sender: UIScreenEdgePanGestureRecognizer) {
+    @objc private func onEdgePanned(sender: UIScreenEdgePanGestureRecognizer) {
         
         //Calculate some data
         let minPercent = 0.0
@@ -221,9 +229,9 @@ public class CubeContainerViewController: UIViewController {
             containingView.layer.speed = 0
             
             if isRotatingBackward {
-                navigateToPreviousViewController()
+                navigateToPreviousViewController(isInteractive: true)
             } else {
-                navigateToNextViewController()
+                navigateToNextViewController(isInteractive: true)
             }
             
         case .changed:
@@ -257,7 +265,7 @@ public class CubeContainerViewController: UIViewController {
     
     //MARK: Rotation Animation Related
     
-    private func performRotationAnimation(from: CubeSide, to: CubeSide) {
+    private func performRotationAnimation(from: CubeSide, to: CubeSide, isInteractive: Bool) {
         guard !isRotationAnimationInProgress() else {
             return
         }
@@ -268,7 +276,15 @@ public class CubeContainerViewController: UIViewController {
             self.containerView.layer.timeOffset = 0
         }
         
-        let rotationAnimation = makeRotationAnimation(from: from, to: to)
+        
+        let rotationAnimation = isInteractive ? makeLinearRotationAnimation(from: from, to: to) : makeKeyTimedRotationAnimation(from: from, to: to)
+        rotationAnimation.duration = 1.0
+        rotationAnimation.isRemovedOnCompletion = false
+        rotationAnimation.fillMode = kCAFillModeForwards
+        rotationAnimation.delegate = self
+        //Add meta-data to the animation object, so that appropriate actions may performed in the delegate callback 'animationDidStop'
+        rotationAnimation.setValue(to.rawValue, forKey: rotationAnimationKeyFinalSide)
+        
         CATransaction.setAnimationDuration(rotationAnimation.duration)
         containerView.layer.add(rotationAnimation, forKey: rotationAnimationIdentifier)
         
@@ -280,22 +296,27 @@ public class CubeContainerViewController: UIViewController {
         return containerView.layer.animation(forKey: rotationAnimationIdentifier) != nil
     }
     
-    /// Creates a new rotation animation
-    /// Assigns self as delegate
-    /// Adds meta-data to the animation, which can be retrieved and used in the delegate callback 'animationDidStop'
-    private func makeRotationAnimation(from: CubeSide, to: CubeSide) -> CAAnimation {
+    
+    private func makeLinearRotationAnimation(from: CubeSide, to: CubeSide) -> CAAnimation {
+        let startTransform = from.perspectiveTransform(in: containerView)
+        let finalTransform = to.perspectiveTransform(in: containerView)
         
+        let keyFrameAnimation = CAKeyframeAnimation(keyPath: "sublayerTransform")
+        keyFrameAnimation.values = [
+            startTransform,     //Begin from start transform
+            finalTransform]     //Animate to original version of final transform
+            .map { NSValue(caTransform3D: $0) }
+        
+        return keyFrameAnimation
+    }
+    
+    private func makeKeyTimedRotationAnimation(from: CubeSide, to: CubeSide) -> CAAnimation {
         let startTransform = from.perspectiveTransform(in: containerView)
         let startDownScaled = CATransform3DScale(startTransform, 0.85, 0.85, 0.85)
-        
         let finalTransform = to.perspectiveTransform(in: containerView)
         let finalDownScaled = CATransform3DScale(finalTransform, 0.85, 0.85, 0.85)
         
         let keyFrameAnimation = CAKeyframeAnimation(keyPath: "sublayerTransform")
-        keyFrameAnimation.duration = 1.0
-        keyFrameAnimation.isRemovedOnCompletion = false
-        keyFrameAnimation.fillMode = kCAFillModeForwards
-        
         keyFrameAnimation.values = [
             startTransform,     //Begin from start transform
             startDownScaled,    //Animate to scaled down version of start transform
@@ -303,22 +324,17 @@ public class CubeContainerViewController: UIViewController {
             finalTransform]     //Animate to original version of final transform
             .map { NSValue(caTransform3D: $0) }
         
-        
         keyFrameAnimation.timingFunctions = [
             CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseIn),
             CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut),
             CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut),
             CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut),
         ]
-        
         keyFrameAnimation.keyTimes = [0, 0.15, 0.65, 1.0] //These values look good
-        keyFrameAnimation.delegate = self
-        
-        //Add meta-data to the animation object, so that appropriate actions may performed when the animation ends
-        keyFrameAnimation.setValue(to.rawValue, forKey: rotationAnimationKeyFinalSide)
         
         return keyFrameAnimation
     }
+    
     
     fileprivate func removeRotationAnimation() {
         containerView.layer.removeAnimation(forKey: rotationAnimationIdentifier)
