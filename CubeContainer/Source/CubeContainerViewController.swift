@@ -80,6 +80,7 @@ public class CubeContainerViewController: UIViewController {
         addChildViewController(popNextViewController()!,
                                superview: containerView,
                                transform: currentSide.viewTransform(in: containerView))
+        applyCubeTransforms()
     }
     
     private func applyCameraPerspective() {
@@ -99,17 +100,15 @@ public class CubeContainerViewController: UIViewController {
     }
     
     
-    
-    
-    
-    
-    
-    
     //MARK: Rotation
     
-    public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        applyCubeTransforms()
+    public override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        
+        //Apply cube transforms alongside the coordinator's transition so that 'self.view' has been updated to its new size
+        coordinator.animate(alongsideTransition: { context in
+            self.applyCubeTransforms()
+        })
+        super.viewWillTransition(to: size, with: coordinator)
     }
     
     private func applyCubeTransforms() {
@@ -120,7 +119,6 @@ public class CubeContainerViewController: UIViewController {
             childViewController.view.layer.transform = cubeSide.viewTransform(in: view)
         }
     }
-    
     
     
     
