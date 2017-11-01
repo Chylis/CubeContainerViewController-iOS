@@ -148,6 +148,13 @@ public class CubeContainerViewController: UIViewController {
         
         //Disable user interaction so that the newest view may receive touches.
         currentViewController().view.isUserInteractionEnabled = false
+
+        //Disable interactive navigation during non-interactive animation
+        if !isInteractive {
+            leftScreenEdgeRecognizer.isEnabled = false
+            rightScreenEdgeRecognizer.isEnabled = false
+        }
+        
         
         addChildViewController(nextVc, superview: containerView, transform: currentSide.nextSide().viewTransform(in: containerView))
         performRotationAnimation(from: currentSide, to: currentSide.nextSide(), isInteractive: isInteractive)
@@ -169,6 +176,12 @@ public class CubeContainerViewController: UIViewController {
         rotationAnimationCompletionBlock =  {
             let currentVc = self.currentViewController()
             self.pushViewControllerToFutureStack(currentVc)
+        }
+        
+        //Disable interactive navigation during non-interactive animation
+        if !isInteractive {
+            leftScreenEdgeRecognizer.isEnabled = false
+            rightScreenEdgeRecognizer.isEnabled = false
         }
         
         performRotationAnimation(from: currentSide, to: currentSide.prevSide(), isInteractive: isInteractive)
@@ -213,7 +226,6 @@ public class CubeContainerViewController: UIViewController {
         //Calculate some data
         let minPercent = 0.0
         let maxPercent = 0.999
-        let minPercentRequired = 0.25
         let isRotatingBackward = sender == leftScreenEdgeRecognizer
         let containingView = sender.view!
         let delta = sender.translation(in: containingView)
@@ -241,8 +253,12 @@ public class CubeContainerViewController: UIViewController {
             }
             
         case .ended, .cancelled, .failed:
+            let userSwipeSpeed = fabs(sender.velocity(in: containingView).x)
+            let minimumVelocityRequired: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 1700 : 500;
+            let hasPannedFastEnoughToSwitch = userSwipeSpeed > minimumVelocityRequired;
+            let hasPannedFarEnoughToSwitch = percentPanned > 0.5
             
-            if percentPanned < minPercentRequired {
+            if !hasPannedFarEnoughToSwitch && !hasPannedFastEnoughToSwitch {
                 //Has not panned enough to switch sides - animate restoration to originating side
                 
                 CATransaction.begin()
@@ -268,9 +284,15 @@ public class CubeContainerViewController: UIViewController {
                 CATransaction.commit()
             }
             
-            //Restore layer speed and begin the animation now
+            
+            //Continue the animation with a similar speed to the user swipe speed.
+            //Animation speed = 'velocity.x (points per second) / view.width (points)'. Minimum 1.5, maximum 2.
+            let animationSpeed = max(1.5, min(2, userSwipeSpeed / max(1.0, containingView.bounds.size.width)))
+            containingView.layer.speed = Float(animationSpeed)
+            
+            //Begin the animation now
             containingView.layer.beginTime = CACurrentMediaTime()
-            containingView.layer.speed = 1
+            
             
         default:
             return
@@ -410,7 +432,13 @@ extension CubeContainerViewController: CAAnimationDelegate {
         //Enable user interaction for the current view controller
         currentViewController().view.isUserInteractionEnabled = true
         
-        rotationAnimationCompletionBlock = nil
+        //Restore interactive navigation
+        leftScreenEdgeRecognizer.isEnabled = true
+        rightScreenEdgeRecognizer.isEnabled = true
         
+        //Restore layer speed in case it was interactive
+        containerView.layer.speed = 1
+        
+        rotationAnimationCompletionBlock = nil
     }
 }

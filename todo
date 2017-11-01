@@ -1,5 +1,4 @@
 - BOOL isCircular (possible to navigate from last --> first and first --> last)
 - BOOL shouldDownScale (whether or not to scale down during animation)
 - animate shadow on from and to sides
-- handoff animation when user drags --> lets go (right now it doesn't take velocity into account)
 
