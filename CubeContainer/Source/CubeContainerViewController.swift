@@ -36,8 +36,9 @@ public class CubeContainerViewController: UIViewController {
     private var rightScreenEdgeRecognizer, leftScreenEdgeRecognizer: UIScreenEdgePanGestureRecognizer!
     
     //Rotation animation key-value keys
-    fileprivate let rotationAnimationIdentifier = "rotateCubeAnimation"
-    fileprivate let rotationAnimationKeyFinalSide = "rotateCubeAnimationFinalTransform"
+    fileprivate static let abortRotationAnimationIdentifier = "abortRotationAnimationIdentifier"
+    fileprivate static let rotationAnimationIdentifier = "rotateCubeAnimation"
+    fileprivate static let rotationAnimationKeyFinalSide = "rotateCubeAnimationFinalTransform"
     
     
     
@@ -240,25 +241,41 @@ public class CubeContainerViewController: UIViewController {
             }
             
         case .ended, .cancelled, .failed:
+            
             if percentPanned < minPercentRequired {
-                removeRotationAnimation()
+                //Has not panned enough to switch sides - animate restoration to originating side
+                
+                CATransaction.begin()
+                CATransaction.setCompletionBlock({
+                    self.removeRotationAnimation()
+                    self.containerView.layer.removeAnimation(forKey: CubeContainerViewController.abortRotationAnimationIdentifier)
+                })
+                
+                let restorationAnimation = CABasicAnimation(keyPath: "sublayerTransform")
+                if let currentSublayerTransform = containerView.layer.presentation()?.sublayerTransform {
+                    restorationAnimation.fromValue = currentSublayerTransform
+                }
+                restorationAnimation.toValue = containerView.layer.model().sublayerTransform
+                
+                /* WORKAROUND:
+                 * Setting the "layer.sublayerTransform" model value prior to the animation and then restoring it after, results in a glitch.
+                 * Therefore we use 'kCAFillModeForwards' combined with 'isRemovedOnCompletion = false' and explicitly remove animation when done.
+                 */
+                restorationAnimation.isRemovedOnCompletion = false
+                restorationAnimation.fillMode = kCAFillModeForwards
+                
+                containerView.layer.add(restorationAnimation, forKey: CubeContainerViewController.abortRotationAnimationIdentifier)
+                CATransaction.commit()
             }
             
             //Restore layer speed and begin the animation now
             containingView.layer.beginTime = CACurrentMediaTime()
             containingView.layer.speed = 1
+            
         default:
             return
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
     
     
     //MARK: Rotation Animation Related
@@ -281,17 +298,17 @@ public class CubeContainerViewController: UIViewController {
         rotationAnimation.fillMode = kCAFillModeForwards
         rotationAnimation.delegate = self
         //Add meta-data to the animation object, so that appropriate actions may performed in the delegate callback 'animationDidStop'
-        rotationAnimation.setValue(to.rawValue, forKey: rotationAnimationKeyFinalSide)
+        rotationAnimation.setValue(to.rawValue, forKey: CubeContainerViewController.rotationAnimationKeyFinalSide)
         
         CATransaction.setAnimationDuration(rotationAnimation.duration)
-        containerView.layer.add(rotationAnimation, forKey: rotationAnimationIdentifier)
+        containerView.layer.add(rotationAnimation, forKey: CubeContainerViewController.rotationAnimationIdentifier)
         
         CATransaction.commit()
     }
     
     /// Returns true if the rotation animation is currently in progress
     private func isRotationAnimationInProgress() -> Bool {
-        return containerView.layer.animation(forKey: rotationAnimationIdentifier) != nil
+        return containerView.layer.animation(forKey: CubeContainerViewController.rotationAnimationIdentifier) != nil
     }
     
     
@@ -335,7 +352,7 @@ public class CubeContainerViewController: UIViewController {
     
     
     fileprivate func removeRotationAnimation() {
-        containerView.layer.removeAnimation(forKey: rotationAnimationIdentifier)
+        containerView.layer.removeAnimation(forKey: CubeContainerViewController.rotationAnimationIdentifier)
     }
 }
 
@@ -365,7 +382,7 @@ extension CubeContainerViewController: CAAnimationDelegate {
      
      */
     public func animationDidStop(_ anim: CAAnimation, finished successful: Bool) {
-        let newSide = CubeSide(rawValue:anim.value(forKey: rotationAnimationKeyFinalSide) as! Int)!
+        let newSide = CubeSide(rawValue:anim.value(forKey: CubeContainerViewController.rotationAnimationKeyFinalSide) as! Int)!
         
         if successful {
             //Update current side
@@ -377,6 +394,7 @@ extension CubeContainerViewController: CAAnimationDelegate {
             if let rotationAnimationCompletionBlock = rotationAnimationCompletionBlock {
                 rotationAnimationCompletionBlock()
             }
+            removeRotationAnimation()
         } else {
             //Interactive animation failed. Let's check what direction was attempted
             let oldSide = currentSide
@@ -384,8 +402,8 @@ extension CubeContainerViewController: CAAnimationDelegate {
             
             if isAnimationDirectionForward {
                 // Remove the newly added 'nextVc' since animation didn't complete
-                let currentVc = self.currentViewController()
-                self.pushViewControllerToFutureStack(currentVc)
+                let currentVc = currentViewController()
+                pushViewControllerToFutureStack(currentVc)
             }
         }
         
@@ -393,6 +411,6 @@ extension CubeContainerViewController: CAAnimationDelegate {
         currentViewController().view.isUserInteractionEnabled = true
         
         rotationAnimationCompletionBlock = nil
-        removeRotationAnimation()
+        
     }
 }
