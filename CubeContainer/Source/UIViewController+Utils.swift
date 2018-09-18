@@ -11,15 +11,15 @@ import UIKit
 extension UIViewController {
     
     func addChildViewController(_ childViewController: UIViewController, superview: UIView, transform: CATransform3D) {
-        addChildViewController(childViewController)
+        addChild(childViewController)
         superview.centerSubview(childViewController.view)
         childViewController.view.layer.transform = transform
-        childViewController.didMove(toParentViewController: self)
+        childViewController.didMove(toParent: self)
     }
     
-    func removeFromParent() {
-        willMove(toParentViewController: nil)
+    func removeFromParentViewController() {
+        willMove(toParent: nil)
         view.removeFromSuperview()
-        removeFromParentViewController()
+        removeFromParent()
     }
 }

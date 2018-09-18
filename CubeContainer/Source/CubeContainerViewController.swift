@@ -115,7 +115,7 @@ public class CubeContainerViewController: UIViewController {
     private func applyCubeTransforms() {
         containerView.layer.sublayerTransform = currentSide.perspectiveTransform(in: view)
         
-        for (index, childViewController) in childViewControllers.enumerated() {
+        for (index, childViewController) in children.enumerated() {
             let cubeSide = CubeSide(index: index)
             childViewController.view.layer.transform = cubeSide.viewTransform(in: view)
         }
@@ -168,7 +168,7 @@ public class CubeContainerViewController: UIViewController {
     }
     
     private func navigateToPreviousViewController(isInteractive: Bool) {
-        let hasPreviousViewControllers = currentViewController() != childViewControllers.first
+        let hasPreviousViewControllers = currentViewController() != children.first
         guard !isRotationAnimationInProgress(), hasPreviousViewControllers else {
             return
         }
@@ -195,7 +195,7 @@ public class CubeContainerViewController: UIViewController {
     
     /// Returns the currently presented view controller
     fileprivate func currentViewController() -> UIViewController {
-        return childViewControllers.last!
+        return children.last!
     }
     
     //Pops the stack of future view controllers, returning the next view controller to be presented
@@ -210,7 +210,7 @@ public class CubeContainerViewController: UIViewController {
     
     
     fileprivate func pushViewControllerToFutureStack(_ viewController: UIViewController) {
-        viewController.removeFromParent()
+        viewController.removeFromParentViewController()
         futureViewControllers.append(viewController)
     }
     
@@ -229,7 +229,7 @@ public class CubeContainerViewController: UIViewController {
         let isRotatingBackward = sender == leftScreenEdgeRecognizer
         let containingView = sender.view!
         let delta = sender.translation(in: containingView)
-        var percentPanned = Double(fabs(delta.x/containingView.bounds.size.width))
+        var percentPanned = Double(abs(delta.x/containingView.bounds.size.width))
         
         //Clamp percentPanned between 0.0 and 0.999
         percentPanned = min(maxPercent, max(minPercent, percentPanned))
@@ -253,8 +253,9 @@ public class CubeContainerViewController: UIViewController {
             }
             
         case .ended, .cancelled, .failed:
-            let userSwipeSpeed = fabs(sender.velocity(in: containingView).x)
+            let userSwipeSpeed = abs(sender.velocity(in: containingView).x)
             let minimumVelocityRequired: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 1700 : 500;
+
             let hasPannedFastEnoughToSwitch = userSwipeSpeed > minimumVelocityRequired;
             let hasPannedFarEnoughToSwitch = percentPanned > 0.5
             
@@ -278,7 +279,7 @@ public class CubeContainerViewController: UIViewController {
                  * Therefore we use 'kCAFillModeForwards' combined with 'isRemovedOnCompletion = false' and explicitly remove animation when done.
                  */
                 restorationAnimation.isRemovedOnCompletion = false
-                restorationAnimation.fillMode = kCAFillModeForwards
+                restorationAnimation.fillMode = CAMediaTimingFillMode.forwards
                 
                 containerView.layer.add(restorationAnimation, forKey: CubeContainerViewController.abortRotationAnimationIdentifier)
                 CATransaction.commit()
@@ -317,7 +318,7 @@ public class CubeContainerViewController: UIViewController {
         let rotationAnimation = isInteractive ? makeLinearRotationAnimation(from: from, to: to) : makeKeyTimedRotationAnimation(from: from, to: to)
         rotationAnimation.duration = 1.0
         rotationAnimation.isRemovedOnCompletion = false
-        rotationAnimation.fillMode = kCAFillModeForwards
+        rotationAnimation.fillMode = CAMediaTimingFillMode.forwards
         rotationAnimation.delegate = self
         //Add meta-data to the animation object, so that appropriate actions may performed in the delegate callback 'animationDidStop'
         rotationAnimation.setValue(to.rawValue, forKey: CubeContainerViewController.rotationAnimationKeyFinalSide)
@@ -362,10 +363,10 @@ public class CubeContainerViewController: UIViewController {
             .map { NSValue(caTransform3D: $0) }
         
         keyFrameAnimation.timingFunctions = [
-            CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseIn),
-            CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut),
-            CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut),
-            CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut),
+            CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeIn),
+            CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeInEaseOut),
+            CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeInEaseOut),
+            CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeOut),
         ]
         keyFrameAnimation.keyTimes = [0, 0.15, 0.65, 1.0] //These values look good
         

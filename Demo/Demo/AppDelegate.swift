@@ -18,7 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let vc4 = AppDelegate.makeViewController()
     let vc5 = AppDelegate.makeViewController()
     
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         vc1.view.centerSubview(UIImageView(image: UIImage(named: "polar")!))
         vc2.view.centerSubview(UIImageView(image: UIImage(named: "fox")!))
         vc3.view.centerSubview(UIImageView(image: UIImage(named: "pug")!))
